@@ -1,33 +1,32 @@
 # rocket-avionics
 
-Parachute recovery avionics for **HORNET X**, a sounding rocket built by the
-Sapienza Rocket Team.
+Parachute recovery code for HORNET X, a sounding rocket built by the Sapienza
+Rocket Team.
 
-The flight computer reads pressure from a BMP388 barometer, filters it,
-converts it to altitude, and fires the two parachute pyro channels at apogee.
+The flight computer reads pressure off a BMP388, filters it, turns it into
+altitude and fires the two pyro channels once it decides the rocket has stopped
+going up.
 
-Written during my first year with the team (Training Academy 2024/2025) and
-rebuilt here with a proper project layout and tests.
+I wrote the first version during my first year with the team, in the 2024/2025
+Training Academy. What's in here is that same logic, tidied up and with tests
+around it. HORNET X did fly, but not with this on board: on launch day we used
+the team's own flight computer, so everything below was only ever checked in
+simulation.
 
-> HORNET X flew, but not with this code on board: on launch day the team used
-> their own flight computer. This software was validated in simulation only.
+## What it does
 
-## How it works
+Two states. On the pad it keeps sampling until the altitude moves more than 3 m
+between two consecutive samples, and calls that liftoff. From then on it looks
+for two samples less than 10 cm apart, calls that apogee, fires the drogue,
+waits a second and fires the main.
 
-Two-state machine:
+Each reading goes through a median filter over the last 25 samples, then a
+3-point moving average, and only then becomes an altitude with the standard ISA
+formula. Everything gets written to a CSV while the loop runs.
 
-| State | Condition to leave it | Action |
-|-------|----------------------|--------|
-| `PRE_LAUNCH` | altitude change > 3 m per sample | go to `IN_FLIGHT` |
-| `IN_FLIGHT` | altitude change < 0.1 m per sample | fire drogue, wait 1 s, fire main |
+HORNET X was designed for 543 m of apogee and 113 m/s.
 
-Each reading is median-filtered over 25 samples, then averaged over the last
-3 medians, then converted to altitude with the International Standard
-Atmosphere formula. Every sample is written to a CSV log.
-
-Design target for HORNET X: apogee 543 m, max velocity 113 m/s.
-
-## Project layout
+## Layout
 
 ```
 avionics/
@@ -40,47 +39,43 @@ flight.py           entry point
 tests/              pytest suite
 ```
 
-## Install
+## Tests
 
 ```bash
 pip install -r requirements.txt
-```
-
-## Run the tests
-
-```bash
 python -m pytest
 ```
 
-Self-contained: no hardware or simulator needed.
+Eleven of them, covering the atmosphere math, the filter and the state machine.
+No hardware or simulator involved. The flight code itself needs nothing outside
+the standard library; pytest is the only dependency and it's there just to run
+the tests.
 
-## Run a simulated flight
+## Running a simulated flight
 
-Needs the Rocket Team files, which are not in this repo:
+`vendor/stubs.py` and `vendor/testDriver.py` are in the repo. `stubs.py` fakes
+the MicroPython pieces that CPython doesn't have (`time.sleep_ms`, `machine`).
+`testDriver.py` talks to the simulator over stdin/stdout; on the real board it
+gets swapped for `driver.py`, same interface. Neither of them is mine, they come
+from the team.
 
-- **FEMU**, the team's flight simulator, in a folder next to this one
-- **`stubs.py`** and **`testDriver.py`** in `vendor/`
-- a flight CSV (`time_ms,pressure_Pa`), kept with FEMU rather than in this repo
-  (`femu/data/`)
+What you need from outside is FEMU, the team's simulator, in a folder next to
+this one, and a recorded flight to replay: a CSV of `time_ms,pressure_Pa` rows,
+which I keep in `femu/data/` rather than in here. The team's flight logs are not
+part of this repo.
 
-`stubs.py` provides the MicroPython APIs (`time.sleep_ms`, `machine`) that this
-code needs and CPython does not have. `testDriver.py` talks to the simulator;
-on the real board it is replaced by `driver.py`, same interface.
-
-From the folder containing `femu`:
+From the folder that contains `femu`:
 
 ```bash
 PYTHONUNBUFFERED=1 python -m femu /abs/path/femu/data/flight.csv /abs/path/flight.py
 ```
 
-Both are required:
+Both bits matter. Without `PYTHONUNBUFFERED=1` the two processes end up waiting
+on each other's buffered output and nothing happens, with no error to tell you
+why. The paths have to be absolute because femu changes working directory before
+it starts the script.
 
-- `PYTHONUNBUFFERED=1` — without it Python buffers stdout and the two processes
-  deadlock silently
-- absolute paths — the simulator changes working directory before starting the
-  script
-
-## Flight log
+## The log
 
 `logs/flight_log.csv`, no header, one row per sample:
 
@@ -88,14 +83,29 @@ Both are required:
 timestamp, filtered_pressure_Pa, raw_pressure_Pa, state, parachute
 ```
 
-`state` is `3` pre-launch or `2` in flight. `parachute` is `0` stowed or
-`1` deployed. Opened in append mode, so delete it between runs.
+`state` is 3 on the pad and 2 in flight, `parachute` is 0 or 1. The file opens
+in append mode, so delete it between runs or you'll get two flights in one.
 
-## Known limitations
+## What's still wrong with it
 
-- Thresholds are per sample, not per second: they shift if the loop rate changes
-- The filter lags, and apogee is detected about 2 s early on the reference flight
-- Altitude is above sea level, not above ground
+I replayed one of the team's recorded flights through the filter and the state
+machine to see where the thresholds actually fire. Apogee comes out 3.1 s early
+and 15 m low, with the rocket still climbing at about 30 m/s, and liftoff isn't
+flagged until 142 m. Both have the same cause: the two checks look at a single
+pair of samples and compare absolute differences, so they can't tell a climb
+from a descent, and one quiet pair is enough to trigger a deployment.
+
+The thresholds are per sample rather than per second, so they only mean what I
+think they mean at the loop rate I picked (20 ms). The flight I replayed was
+recorded at 12.5 ms.
+
+Altitude is above sea level. Nothing zeroes it on the pad.
+
+The loop exits right after the main charge, so none of the descent is logged and
+there's no landing detection.
+
+`time.monotonic()` works only because of the CPython stubs. On the board it
+would need `time.ticks_ms()`.
 
 ## Author
 
