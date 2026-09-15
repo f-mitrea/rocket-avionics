@@ -116,9 +116,10 @@ python tools/replay.py /abs/path/femu/data/flight.csv
 
 On the flight I replayed, apogee comes out 3.1 s early and 15 m low, with the
 rocket still climbing at 13 m/s, and liftoff isn't flagged until 142 m, about a
-second after it actually left the pad. Both have the same cause: the two checks look at a single pair of samples and compare
-absolute differences, so they can't tell a climb from a descent, and one quiet
-pair is enough to trigger a deployment.
+second after it actually left the pad. Both have the same cause: the two checks
+look at a single pair of samples and compare absolute differences, so they can't
+tell a climb from a descent, and one quiet pair is enough to trigger a
+deployment.
 
 The thresholds are per sample rather than per second, so they only mean what I
 think they mean at the loop rate I picked (20 ms). The flight I replayed was
