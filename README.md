@@ -133,6 +133,10 @@ there's no landing detection.
 `time.monotonic()` works only because of the CPython stubs. On the board it
 would need `time.ticks_ms()`.
 
+I've left the detection logic as I wrote it in the Training Academy rather than
+patching it afterwards. What's new here is the measurement, and the list above
+is the order I'd fix things in.
+
 ## Author
 
 Fabio Alexandru Mitrea
