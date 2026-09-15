@@ -1,17 +1,31 @@
 # rocket-avionics
 
-Parachute recovery code for HORNET X, a sounding rocket built by the Sapienza
-Rocket Team.
+Parachute recovery code for HORNET X, a solid-propellant sounding rocket built
+by the Sapienza Rocket Team.
 
 The flight computer reads pressure off a BMP388, filters it, turns it into
 altitude and fires the two pyro channels once it decides the rocket has stopped
 going up.
 
-I wrote the first version during my first year with the team, in the 2024/2025
-Training Academy. What's in here is that same logic, tidied up and with tests
-around it. HORNET X did fly, but not with this on board: on launch day we used
-the team's own flight computer, so everything below was only ever checked in
-simulation.
+I wrote the first version during my first year with the team, in the Sapienza
+Rocket Team Training Academy 2024/2025, as part of team 7. What's in here is
+that same logic, tidied up and with tests around it. HORNET X did fly, but not
+with this on board: on launch day we used the team's own flight computer, so
+everything below was only ever checked in simulation.
+
+## The rocket
+
+A 75 mm airframe about 66 cm long: a 3D-printed PLA ogive nose over a Kraft
+phenolic body tube, trapezoidal fins, ballast up front to move the centre of
+gravity forward. Recovery was sized for a 1 kg vehicle coming down at 3 m/s
+under a cruciform chute of 0.73 m side, which is where the ejection charge and
+shock cord loads came from.
+
+Worth saying, because it sets the scale the thresholds below were chosen for:
+the flight I replay in `tools/replay.py` is a different and much larger team
+vehicle, with apogee at 1418 m and 24 s after launch, against the few hundred
+metres and roughly 10 s HORNET X was built for. The detection logic is the same
+either way, but the numbers it has to work with are not.
 
 ## What it does
 
@@ -37,6 +51,7 @@ avionics/
   main.py           the flight loop
 flight.py           entry point
 tests/              pytest suite
+tools/replay.py     replay a recorded flight through the detection logic
 ```
 
 ## Tests
@@ -88,12 +103,19 @@ in append mode, so delete it between runs or you'll get two flights in one.
 
 ## What's still wrong with it
 
-I replayed one of the team's recorded flights through the filter and the state
-machine to see where the thresholds actually fire. Apogee comes out 3.1 s early
-and 15 m low, with the rocket still climbing at about 30 m/s, and liftoff isn't
-flagged until 142 m. Both have the same cause: the two checks look at a single
-pair of samples and compare absolute differences, so they can't tell a climb
-from a descent, and one quiet pair is enough to trigger a deployment.
+`tools/replay.py` feeds a recorded flight through the same filter and state
+machine the flight loop uses, and prints where the thresholds actually fire
+against the apogee computed from the unfiltered pressure:
+
+```bash
+python tools/replay.py /abs/path/femu/data/flight.csv
+```
+
+On the flight I replayed, apogee comes out 3.1 s early and 15 m low, with the
+rocket still climbing at 13 m/s, and liftoff isn't flagged until 142 m. Both
+have the same cause: the two checks look at a single pair of samples and compare
+absolute differences, so they can't tell a climb from a descent, and one quiet
+pair is enough to trigger a deployment.
 
 The thresholds are per sample rather than per second, so they only mean what I
 think they mean at the loop rate I picked (20 ms). The flight I replayed was
