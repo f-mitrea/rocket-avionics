@@ -23,9 +23,9 @@ shock cord loads came from.
 
 Worth saying, because it sets the scale the thresholds below were chosen for:
 the flight I replay in `tools/replay.py` is a different and much larger team
-vehicle, with apogee at 1418 m and 24 s after launch, against the few hundred
-metres and roughly 10 s HORNET X was built for. The detection logic is the same
-either way, but the numbers it has to work with are not.
+vehicle, reaching 1418 m about 18 s after leaving the pad, against the few
+hundred metres and roughly 10 s HORNET X was built for. The detection logic is
+the same either way, but the numbers it has to work with are not.
 
 ## What it does
 
@@ -38,7 +38,9 @@ Each reading goes through a median filter over the last 25 samples, then a
 3-point moving average, and only then becomes an altitude with the standard ISA
 formula. Everything gets written to a CSV while the loop runs.
 
-HORNET X was designed for 543 m of apogee and 113 m/s.
+The team's OpenRocket model puts apogee in the mid-500s, but its motor and its
+mass don't agree with the 1 kg the recovery was sized around, so I read that as
+a design target rather than a prediction.
 
 ## Layout
 
@@ -52,6 +54,7 @@ avionics/
 flight.py           entry point
 tests/              pytest suite
 tools/replay.py     replay a recorded flight through the detection logic
+vendor/             team-supplied stubs and simulator driver
 ```
 
 ## Tests
@@ -112,8 +115,8 @@ python tools/replay.py /abs/path/femu/data/flight.csv
 ```
 
 On the flight I replayed, apogee comes out 3.1 s early and 15 m low, with the
-rocket still climbing at 13 m/s, and liftoff isn't flagged until 142 m. Both
-have the same cause: the two checks look at a single pair of samples and compare
+rocket still climbing at 13 m/s, and liftoff isn't flagged until 142 m, about a
+second after it actually left the pad. Both have the same cause: the two checks look at a single pair of samples and compare
 absolute differences, so they can't tell a climb from a descent, and one quiet
 pair is enough to trigger a deployment.
 
