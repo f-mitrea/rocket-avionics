@@ -1,5 +1,6 @@
 from avionics.atmosphere import SEA_LEVEL_PRESSURE, pressure_to_altitude
 
+
 def test_sea_level_gives_zero_altitude():
     assert abs(pressure_to_altitude(SEA_LEVEL_PRESSURE)) < 1e-9
 

@@ -1,5 +1,6 @@
 from avionics.filters import filter_pressure, reset_filter
 
+
 def test_first_sample_returns_itself():
     reset_filter()
     assert filter_pressure(101325.0) == 101325.0

@@ -17,20 +17,22 @@ with open(csv_path) as f:
         if len(row) >= 2:
             rows.append((float(row[0]), float(row[1])))
 
-print("campioni:", len(rows))
-print("durata s:", (rows[-1][0] - rows[0][0]) / 1000)
+print("samples:", len(rows))
+print("duration [s]:", (rows[-1][0] - rows[0][0]) / 1000)
 
 gaps = [rows[i + 1][0] - rows[i][0] for i in range(len(rows) - 1)]
-print("dt medio ms: %.1f" % (sum(gaps) / len(gaps)))
+print("mean dt [ms]: %.1f" % (sum(gaps) / len(gaps)))
 
 raw_alt = [pressure_to_altitude(p) for t, p in rows]
 ground = raw_alt[0]
 
 apogee_i = max(range(len(raw_alt)), key=lambda i: raw_alt[i])
 
-print("quota di lancio AMSL m: %.1f" % ground)
-print("apogeo vero: t=%.2f s  AGL=%.1f m"
-      % (rows[apogee_i][0] / 1000, raw_alt[apogee_i] - ground))
+print("pad altitude AMSL [m]: %.1f" % ground)
+print(
+    "highest raw sample: t=%.2f s  AGL=%.1f m"
+    % (rows[apogee_i][0] / 1000, raw_alt[apogee_i] - ground)
+)
 
 reset_filter()
 
@@ -52,14 +54,15 @@ for i, (t, p) in enumerate(rows):
 
 def report(name, i):
     if i is None:
-        print(name + ": mai rilevato")
+        print(name + ": never detected")
     else:
-        print("%s: t=%.2f s  AGL=%.1f m"
-              % (name, rows[i][0] / 1000, raw_alt[i] - ground))
+        print(
+            "%s: t=%.2f s  AGL=%.1f m" % (name, rows[i][0] / 1000, raw_alt[i] - ground)
+        )
 
 
-report("liftoff rilevato", liftoff_i)
-report("apogeo rilevato ", fired_i)
+report("liftoff detected", liftoff_i)
+report("apogee detected ", fired_i)
 
 if fired_i is not None:
     err_s = (rows[fired_i][0] - rows[apogee_i][0]) / 1000
@@ -70,5 +73,5 @@ if fired_i is not None:
     b = min(len(rows) - 1, fired_i + w)
     climb = (raw_alt[b] - raw_alt[a]) / ((rows[b][0] - rows[a][0]) / 1000)
 
-    print("errore sull'apogeo: %+.2f s, %+.1f m" % (err_s, err_m))
-    print("velocita' verticale allo sparo: %+.1f m/s" % climb)
+    print("apogee error: %+.2f s, %+.1f m" % (err_s, err_m))
+    print("vertical speed at firing: %+.1f m/s" % climb)

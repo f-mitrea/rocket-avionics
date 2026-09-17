@@ -57,5 +57,3 @@ def main() -> None:
         time.sleep_ms(SAMPLE_PERIOD_MS)
 
     close_log()
-
-
